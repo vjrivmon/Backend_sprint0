@@ -1,0 +1,73 @@
+# @file docker-compose.yml
+# @brief Archivo de configuración para Docker Compose que define los servicios necesarios para la aplicación.
+# 
+# Este archivo configura tres servicios: node, mariadb y nginx. 
+# El servicio node depende del servicio mariadb y espera a que esté disponible antes de iniciar.
+# El servicio mariadb se reinicia automáticamente y monta una carpeta local para inicializar la base de datos.
+# El servicio nginx expone el puerto 80 para servir la aplicación web.
+# 
+# @note Asegúrate de tener los Dockerfiles y las variables de entorno correctamente configuradas.
+# @see https://docs.docker.com/compose/
+
+version: '3.8'
+services:
+  node:
+    container_name: sprint0_njs
+    build: 
+      context: ./nodejs
+      dockerfile: Dockerfile
+    tty: true
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mariadb
+    env_file:
+      - ./variables.env
+    command: bash -c "while !</dev/tcp/mariadb/3306; do sleep 1; done; node servidorREST.js"
+    # @brief Servicio Node.js que ejecuta el servidor REST.
+    # @param container_name Nombre del contenedor.
+    # @param build Configuración de construcción del contenedor.
+    # @param tty Habilita TTY.
+    # @param ports Mapea el puerto 8080 del contenedor al puerto 8080 del host.
+    # @param depends_on Espera a que el servicio mariadb esté disponible.
+    # @param env_file Archivo de variables de entorno.
+    # @param command Comando para esperar a que mariadb esté disponible y luego ejecutar el servidor.
+
+  mariadb:
+    container_name: sprint0_mdb
+    restart: always
+    build:
+      context: ./mariadb
+      dockerfile: Dockerfile
+    env_file:
+      - ./variables.env
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mariadb/sql:/docker-entrypoint-initdb.d  # Monta la carpeta sql
+      - db_data:/var/lib/mysql
+    # @brief Servicio MariaDB que proporciona la base de datos.
+    # @param container_name Nombre del contenedor.
+    # @param restart Política de reinicio del contenedor.
+    # @param build Configuración de construcción del contenedor.
+    # @param env_file Archivo de variables de entorno.
+    # @param ports Mapea el puerto 3306 del contenedor al puerto 3306 del host.
+    # @param volumes Monta volúmenes para inicializar la base de datos y almacenar datos persistentes.
+
+  nginx:
+    container_name: sprint0_ngx
+    build:
+      context: ./nodejs/app_web
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"  # Exponer el puerto 80 para HTTP
+    # @brief Servicio Nginx que sirve la aplicación web.
+    # @param container_name Nombre del contenedor.
+    # @param build Configuración de construcción del contenedor.
+    # @param ports Mapea el puerto 80 del contenedor al puerto 80 del host.
+
+volumes:
+  db_data:
+    driver: local
+    # @brief Volumen para almacenar datos persistentes de la base de datos.
+    # @param driver Controlador del volumen.
